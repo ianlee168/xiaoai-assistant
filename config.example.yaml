@@ -1,0 +1,39 @@
+# xiaoai-assistant 配置示例
+# 复制到 ~/.xiaoai/config.yaml 并填入真实参数
+
+llm:
+  provider: minimax
+  api_key: "your-api-key-here"
+  api_base: "https://api.minimax.chat/v1"
+  model: "MiniMax-M2.7"
+  temperature: 0.8
+  max_tokens: 512
+
+tts:
+  provider: mi
+
+speaker:
+  hardware: "LX06"
+  mi_did: ""
+  account: "your-xiaomi-phone"
+  password: "your-xiaomi-password"
+  mi_token_path: "~/.mi.token"
+
+plugins:
+  enabled: []
+  disabled: []
+
+debug: false
+verbose: false
+mute_xiaoai: false
+
+input_mode: cli
+
+keywords:
+  - 小爱同学
+
+continuous_dialogue: false
+start_cmd: "开始持续对话"
+end_cmd: "结束持续对话"
+
+prompt: "你是一个友好的 AI 助手，请用简洁的语言回答用户的问题。"

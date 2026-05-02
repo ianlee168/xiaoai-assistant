@@ -1,0 +1,26 @@
+[project]
+name = "xiaoai-assistant"
+version = "0.1.0"
+description = "小爱音箱 AI 助手框架，支持多种 LLM 和 TTS 引擎"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "ianlee168", email = "ianlee168@gmail.com"}
+]
+dependencies = [
+    "aiohttp>=3.9.0",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+tts-edge = ["edge-tts>=6.0.0"]
+miio = ["miservice-fork>=2.9.0"]
+all = ["edge-tts>=6.0.0", "miservice-fork>=2.9.0"]
+
+[project.scripts]
+xiaoai = "xiaoai_assistant.cli:main"
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
