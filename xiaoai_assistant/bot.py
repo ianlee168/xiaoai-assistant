@@ -64,14 +64,12 @@ class Bot:
 
     # ─── 输入处理 ───────────────────────────────────────────────
 
-    async def handle_text(self, text: str) -> str | None:
-        """处理文本输入（来自 MiNA 或 Web）
+    async def handle_text(self, text: str, force_llm: bool = False) -> str | None:
+        """处理文本输入（来自 MiNA 或 Web
 
         Args:
             text: 用户说的话
-
-        Returns:
-            AI 回复文本，None 表示跳过
+            force_llm: 是否强制调用 LLM（Web 模式不需要唤醒词）
         """
         if not text or not text.strip():
             return None
@@ -90,9 +88,9 @@ class Bot:
             self.conversation_history.clear()
             return "好的，开始持续对话。请问有什么可以帮您的？"
 
-        # 检查唤醒词
+        # 检查唤醒词（Web 模式下可跳过）
         is_wakeup = self._check_wakeup(text)
-        if not is_wakeup and not self.in_conversation:
+        if not is_wakeup and not self.in_conversation and not force_llm:
             logger.debug("非唤醒词，非持续对话，跳过")
             return None
 
@@ -182,10 +180,10 @@ class Bot:
             return False
         return await self.tts.speak(text)
 
-    async def run_round(self, user_text: str) -> str:
+    async def run_round(self, user_text: str, force_llm: bool = False) -> str:
         """执行一轮完整的对话：处理 → LLM → TTS"""
         # 1. 处理输入
-        reply = await self.handle_text(user_text)
+        reply = await self.handle_text(user_text, force_llm=force_llm)
         if not reply:
             return ""
 

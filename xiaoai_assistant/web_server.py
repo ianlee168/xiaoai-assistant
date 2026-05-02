@@ -54,7 +54,7 @@ class WebServer:
             return web.json_response({"error": "text is required"}, status=400)
 
         try:
-            reply = await self.bot.run_round(text)
+            reply = await self.bot.run_round(text, force_llm=True)
             return web.json_response({
                 "reply": reply or "",
                 "success": True,
