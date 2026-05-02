@@ -151,9 +151,33 @@ async def run_mina(config: Config, bot: Bot):
 
 
 async def run_web(config: Config, bot: Bot):
-    """Web 模式（待实现 API Server）"""
-    print("Web 模式暂未实现，请使用 --input-mode cli 测试")
-    await bot.close()
+    """Web API 模式 - 启动 HTTP 服务器"""
+    import aiohttp
+    from xiaoai_assistant.web_server import create_web_server
+
+    async with aiohttp.ClientSession() as session:
+        # 初始化 MiIO
+        miio_client = MiIOClient(config)
+        from xiaoai_assistant.mina_client import MiAccount
+        account = MiAccount(
+            session,
+            config.speaker.account,
+            config.speaker.password,
+            config.speaker.mi_token_path,
+        )
+        try:
+            await account.login("micoapi")
+            miio_client.account = account
+        except Exception as e:
+            logger.warning(f"MiNA 登录失败（TTS 可能无法使用）: {e}")
+
+        bot.set_miio(miio_client)
+
+        # 启动 Web 服务器
+        server = await create_web_server(bot, host="0.0.0.0", port=8000)
+        await server.run_forever()
+
+        await bot.close()
 
 
 async def run_cli(config: Config, bot: Bot):
