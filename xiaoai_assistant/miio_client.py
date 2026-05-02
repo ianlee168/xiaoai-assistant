@@ -1,14 +1,16 @@
 """MiIO 协议客户端 - 本地控制小爱音箱（播放 TTS/执行命令）"""
 from __future__ import annotations
 
-import asyncio
 import logging
-import time
-from typing import Callable
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from miservice import MiAccount
+    from xiaoai_assistant.config import Config
 
 logger = logging.getLogger(__name__)
 
-# MiIO 命令映射（HARDWARE_COMMAND_DICT）
+# MiIO 命令映射
 MIIO_COMMANDS = {
     "LX06": {"tts": "5-1", "wakeup": "5-5"},
     "S12": {"tts": "5-1", "wakeup": "5-5"},
@@ -25,7 +27,7 @@ MIIO_COMMANDS = {
     "X6A": {"tts": "7-3", "wakeup": "7-4"},
     "X10A": {"tts": "7-3", "wakeup": "7-4"},
     "LX05A": {"tts": "5-1", "wakeup": "5-5"},
-    "X8S": {"tts": "5-1", "wakeup": "5-5"},  # X8S 支持 MiIO 命令
+    "X8S": {"tts": "5-1", "wakeup": "5-5"},
 }
 
 DEFAULT_COMMANDS = {"tts": "5-1", "wakeup": "5-5"}
@@ -43,10 +45,9 @@ class MiIOClient:
     不能从音箱获取音频数据（那是 MiNA 的工作）。
     """
 
-    def __init__(self, config, session: asyncio.ClientSession | None = None):
+    def __init__(self, config: "Config"):
         self.config = config
-        self.session = session
-        self.account = None  # 初始化时注入
+        self.account: "MiAccount | None" = None
 
     async def play_tts(self, text: str) -> bool:
         """让音箱播放 TTS
@@ -57,21 +58,23 @@ class MiIOClient:
         Returns:
             True 成功，False 失败
         """
-        try:
-            # 使用 miservice 的 miio_command
-            from miservice import miio_command
+        if not self.account:
+            logger.warning("MiIO 未登录，跳过 TTS")
+            return False
 
+        try:
+            from miservice import MiIOService
+
+            miio = MiIOService(self.account)
             hw = self.config.speaker.hardware
             cmd = MIIO_COMMANDS.get(hw, DEFAULT_COMMANDS)
-            tts_cmd = cmd["tts"]
 
-            # 构造 TTS 命令
-            # 使用 tts_byte 接口
-            result = await self._send_miio_command(
-                "tts_byte",
-                {"text": text}
+            await miio.tts_byte(
+                self.config.speaker.mi_did,
+                text,
+                cmd["tts"]
             )
-            logger.debug(f"TTS 播放结果: {result}")
+            logger.debug(f"TTS 播放成功: {text[:30]}...")
             return True
 
         except Exception as e:
@@ -80,61 +83,17 @@ class MiIOClient:
 
     async def stop(self) -> bool:
         """停止音箱当前播放"""
+        if not self.account:
+            return False
         try:
-            result = await self._send_miio_command("stop", {})
+            from miservice import MiIOService
+            miio = MiIOService(self.account)
+            await miio.miio_command(
+                self.config.speaker.mi_did,
+                "app_control",
+                {"action": "stop"}
+            )
             return True
         except Exception as e:
             logger.error(f"停止播放失败: {e}")
             return False
-
-    async def process_mibrain_info(self) -> str | None:
-        """查询音箱当前播放状态
-
-        Returns:
-            播放状态，如 "rAUDIOPLAYER_STATE: PLAYING"
-        """
-        try:
-            result = await self._send_miio_command("process_mibrain_info", {})
-            if result:
-                logger.debug(f"mibrain_info: {result}")
-                return str(result)
-            return None
-        except Exception as e:
-            logger.error(f"mibrain_info 查询失败: {e}")
-            return None
-
-    async def _send_miio_command(self, command: str, params: dict) -> dict | None:
-        """通过 MiIO 发送命令"""
-        if self.account is None:
-            logger.error("account 未初始化")
-            return None
-
-        try:
-            from miservice import MiIOService
-            miio = MiIOService(self.account)
-
-            hw = self.config.speaker.hardware
-            cmd = MIIO_COMMANDS.get(hw, DEFAULT_COMMANDS)
-
-            if command == "tts_byte":
-                return await miio.tts_byte(
-                    self.config.speaker.mi_did,
-                    params.get("text", ""),
-                    cmd["tts"]
-                )
-            elif command == "stop":
-                return await miio.miio_command(
-                    self.config.speaker.mi_did,
-                    "app_control",
-                    {"action": "stop"}
-                )
-            elif command == "process_mibrain_info":
-                return await miio.miio_command(
-                    self.config.speaker.mi_did,
-                    "process_mibrain_info",
-                    {}
-                )
-
-        except Exception as e:
-            logger.error(f"MiIO 命令 {command} 失败: {e}")
-            return None
